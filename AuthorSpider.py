@@ -4,13 +4,6 @@ from scrapy.spiders import CrawlSpider
 from scrapy.http import Request, FormRequest
 from scrapy.selector import Selector
 
-from jiannian.items import  ArticleItem
-from jiannian.items import AuthorItem
-
-import json
-
-
-
 
 import sys
 
@@ -19,18 +12,32 @@ sys.setdefaultencoding('utf-8')
 
 class AuthorSpider(CrawlSpider):
 
-    name = 'author'
+    name = 'jauthor'
 
     start_urls=[
-        'http://www.jianshu.com/users/54b5900965ea/timeline'
-        #'http://www.jianshu.com/users/e21d00d18f05/timeline'
-        #'http://www.jianshu.com/u/e21d00d18f05'
+        #'http://www.jianshu.com/users/54b5900965ea/timeline' #url要求是以timeline结尾的,而不是直接的作者主页url
+        'http://www.jianshu.com/users/5f4159893525/timeline'
     ]
 
-    pg = 1
+
+
 
     def parse(self,response):
+
         selector = Selector(response)
+
+        url = str(response.url)
+
+        pg = 1
+
+        if url.find('?max_id=') >0 :
+
+            pg = int(response.meta['pg'])
+
+
+
+        user = url.split('/')[4]
+
 
         ids = selector.xpath('//ul[@class="note-list"]/li/@id').extract()
 
@@ -45,51 +52,21 @@ class AuthorSpider(CrawlSpider):
 
             feedtype = info.xpath('div/div[1]/div/span/@data-type').extract()[0]
 
+            ##行为类型 喜欢, 打赏 like_user, like_note 。。。
+            ##最后一条 join_jianshu 注册时间
             print feedtype
 
             dt = info.xpath('div/div[1]/div/span/@data-datetime').extract()[0]
+            ## 时间
             print dt
 
-        self.pg = self.pg+1
 
-        url = 'http://www.jianshu.com/users/54b5900965ea/timeline'
-        next = url +'?max_id='+str(id) +'&page='+ str(self.pg)
+        url = 'http://www.jianshu.com/users/'+user+'/timeline'
+        next = url +'?max_id='+str(id) +'&page='+ str(pg+1)
 
         if len(infos) > 1:
 
-            yield Request(next,callback=self.parse)
-
-
-
-    def parse_0(self,response):
-
-        item = AuthorItem()
-
-        selector = Selector(response)
-
-        infos = selector.xpath("//div[@class='meta-block']/p/text()").extract()
-
-        focus_num= int(str(infos[0]))
-        fan_num= int(str(infos[1]))
-        article_num = int(str(infos[2]))
-        word_num = int(str(infos[3]))
-        like_num = int(str(infos[4]))
-
-        item['author_url']= response.url
-
-        item['focus_num']= focus_num
-        item['fan_num'] = fan_num
-        item['article_num'] = article_num
-        item['word_num'] = word_num
-        item['like_num'] = like_num
-
-        name = selector.xpath('//div[@class="title"]/a/text()').extract()[0]
-
-        item['author_name']=name
-
-
-        yield item
-
+            yield Request(next,callback=self.parse,meta={'pg':str(pg+1)})
 
 
 
